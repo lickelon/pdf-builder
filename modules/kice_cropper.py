@@ -9,6 +9,9 @@ from utils.ratio import Ratio
 from utils.component_info import ComponentInfo
 
 class KiceCropper:
+    def __init__(self, pdf_name: str) -> None:
+        self.pdf_name = pdf_name
+
     def get_problems_area(self, page: Page, accuracy = 1, offset = 1) -> Rect:
         #trim left and right
         rect = page.rect
@@ -95,12 +98,31 @@ class KiceCropper:
             page = file.load_page(page_num)
             rects = self.get_problem_rects(page, accuracy)
             for rect in rects:
-                ret.append(ComponentInfo(file, page_num, rect))
+                ret.append(ComponentInfo(page_num, rect))
         ret.pop()
         return ret
 
-    def extract_problems_to_original(self, pdf_name: str, accuracy = 1) -> None:
-        with fitz.open(pdf_name) as file:
-            infos = self.get_problem_infos_from_file(file, accuracy)
-            for i in range(len(infos)):
-                PdfUtils.extract_to_pdf(file, infos[i].page_num, infos[i].rect, f"output/original/{os.path.basename(pdf_name)[:-4]} {i+1}번 지1.pdf")
+    def extract_problems(self, accuracy = 1) -> int:
+        with fitz.open(self.pdf_name) as file:
+            self.infos = self.get_problem_infos_from_file(file, accuracy)
+            return len(self.infos)
+
+    def save_original(self) -> None:
+        with fitz.open(self.pdf_name) as file:
+            for i in range(len(self.infos)):
+                PdfUtils.extract_to_pdf(file, self.infos[i].page_num, self.infos[i].rect, f"output/original/{os.path.basename(self.pdf_name)[:-4]} {i+1}번 지1_original.pdf")
+
+    def save_caption(self, caption_point: tuple, font_size: int) -> None:
+        with fitz.open(self.pdf_name) as file:
+            for i in range(len(self.infos)):
+                rect = self.infos[i].rect
+                new_doc = fitz.open()
+                new_page = new_doc.new_page(width=rect.width, height=rect.height+Ratio.mm_to_px(caption_point[1]))
+                new_page.show_pdf_page(fitz.Rect(0, Ratio.mm_to_px(caption_point[1]),rect.width,rect.height+Ratio.mm_to_px(caption_point[1])), file, self.infos[i].page_num, clip=rect)
+                new_page.draw_rect(fitz.Rect(0, Ratio.mm_to_px(caption_point[1]), Ratio.mm_to_px(6), Ratio.mm_to_px(caption_point[1]+5)), color=(1,1,1), fill=(1,1,1))
+                font = fitz.Font(fontfile="Eulyoo1945-Regular.ttf")
+                tw = fitz.TextWriter(new_page.rect)
+                tw.append((Ratio.mm_to_px(caption_point[0]), font_size), f"{os.path.basename(self.pdf_name)[:-4]} {i+1}번 지1", font, font_size)
+                tw.write_text(new_page, color=(0,0,0))
+                new_doc.save(f"output/caption/{os.path.basename(self.pdf_name)[:-4]} {i+1}번 지1_caption.pdf")
+                #PdfUtils.extract_to_pdf(file, infos[i].page_num, infos[i].rect, f"output/caption/{os.path.basename(pdf_name)[:-4]} {i+1}번 지1_caption.pdf")

@@ -42,18 +42,21 @@ class KiceCropper:
 
     def get_problem_rects(self, page: Page, accuracy = 1) -> list[Rect]:
         rects = []
-        area = self.get_problems_area(page, accuracy)
+        area = self.get_problems_area(page, accuracy, offset=2)
 
         mid = (area.x0 + area.x1) / 2
 
         left_area = Rect(area)
         left_area.x1 = mid - Ratio.mm_to_px(5)
+        left_area = PdfUtils.trim_whitespace(page, left_area, Direction.RIGHT, accuracy)
         left_area.x0 = left_area.x1 - Ratio.mm_to_px(112.5)
+        #left_area.x1 += Ratio.mm_to_px(0.5)
         rects += self.get_problem_rects_from_area(page, left_area, accuracy)
 
         right_area = Rect(area)
-        right_area.x0 = mid + Ratio.mm_to_px(5)
-        right_area.x1 = right_area.x0 + Ratio.mm_to_px(112.5)
+        right_area = PdfUtils.trim_whitespace(page, right_area, Direction.RIGHT, accuracy)
+        right_area.x0 = right_area.x1 - Ratio.mm_to_px(112.5)
+        #right_area.x1 += Ratio.mm_to_px(0.5)
         rects += self.get_problem_rects_from_area(page, right_area, accuracy)
 
         return rects

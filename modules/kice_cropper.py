@@ -6,7 +6,7 @@ import os
 from utils.direction import Direction
 from utils.pdf_utils import PdfUtils
 from utils.ratio import Ratio
-from utils.component_info import ComponentInfo
+from utils.problem_info import ProblemInfo
 
 class KiceCropper:
     def __init__(self, pdf_name: str) -> None:
@@ -96,13 +96,13 @@ class KiceCropper:
 
         return ret
     
-    def get_problem_infos_from_file(self, file: fitz.Document, accuracy = 1) -> list[ComponentInfo]:
+    def get_problem_infos_from_file(self, file: fitz.Document, accuracy = 1) -> list[ProblemInfo]:
         ret = []
         for page_num in range(file.page_count):
             page = file.load_page(page_num)
             rects = self.get_problem_rects(page, accuracy)
             for rect in rects:
-                ret.append(ComponentInfo(page_num, rect))
+                ret.append(ProblemInfo(page_num, rect))
         ret.pop()
         return ret
 

@@ -10,11 +10,18 @@ class OverlayObject():
         self.child = []
     
     def add_child(self, obj: 'OverlayObject'):
-        self.child.append(copy.deepcopy(obj))
+        new_obj = copy.deepcopy(obj)
+        new_obj.update_page_num(self.page_num)
+        self.child.append(copy.deepcopy(new_obj))
 
-    def overlay(self, overlayer, page_num, absolute_coord):
+    def update_page_num(self, page_num: int):
+        self.page_num = page_num
         for oo in self.child:
-            oo.overlay(overlayer, page_num, absolute_coord + oo.coord)
+            oo.update_page_num(page_num)
+
+    def overlay(self, overlayer, absolute_coord):
+        for oo in self.child:
+            oo.overlay(overlayer, absolute_coord + oo.coord)
         pass
 
     def get_height(self):
@@ -28,21 +35,19 @@ class ListOverlayObject(OverlayObject):
         self.align = align
         self.left_height = height
 
-    def overlay(self, overlayer, page_num, absolute_coord):
+    def overlay(self, overlayer, absolute_coord):
         #TODO
         if self.align == 0:
             curr_height = 0
             for oo in self.child:
-                oo.overlay(overlayer, page_num, absolute_coord + Coord(0, curr_height, 0))
+                oo.overlay(overlayer, absolute_coord + Coord(0, curr_height, 0))
                 curr_height += oo.get_height()
         pass
     def add_child(self, obj: OverlayObject):
         if obj.get_height() > self.left_height:
             return False
         else:
-            new_obj = copy.deepcopy(obj)
-            #new_obj.page_num = self.page_num
-            self.child.append(new_obj)
+            super().add_child(obj)
             self.left_height -= obj.get_height()
         return True
     pass
@@ -62,9 +67,9 @@ class ParagraphOverlayObject(OverlayObject):
             #should append new list
             return False
         
-    def overlay(self, overlayer, page_num, absolute_coord):
+    def overlay(self, overlayer, absolute_coord):
         for oo in self.child:
-            oo.overlay(overlayer, oo.page_num, absolute_coord + oo.coord)
+            oo.overlay(overlayer, absolute_coord + oo.coord)
         pass
 
 
@@ -81,9 +86,9 @@ class ComponentOverlayObject(OverlayObject):
         self.component = component
         super().__init__(page_num, coord)
 
-    def overlay(self, overlayer, page_num, absolute_coord):
-        overlayer.pdf_overlay(page_num, absolute_coord, self.component)
-        super().overlay(overlayer, page_num, absolute_coord)
+    def overlay(self, overlayer, absolute_coord):
+        overlayer.pdf_overlay(self.page_num, absolute_coord, self.component)
+        super().overlay(overlayer, absolute_coord)
     pass
 
     def get_height(self):
@@ -98,9 +103,9 @@ class TextOverlayObject(OverlayObject):
         self.text_align = text_align
         super().__init__(page_num, coord)
 
-    def overlay(self, overlayer, page_num, absolute_coord):
-        overlayer.text_overlay(page_num, absolute_coord, self.font, self.size, self.text, self.color, self.text_align)
-        super().overlay(overlayer, page_num, absolute_coord)
+    def overlay(self, overlayer, absolute_coord):
+        overlayer.text_overlay(self.page_num, absolute_coord, self.font, self.size, self.text, self.color, self.text_align)
+        super().overlay(overlayer, absolute_coord)
 
     def get_height(self):
         #Error: text in paragraph should be wrapped by area

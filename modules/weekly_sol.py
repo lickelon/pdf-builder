@@ -103,7 +103,7 @@ def bake_solutions(resources_pdf, resources_doc, commentary_data, item_pdf, solu
         if sTF[solution_info.hexcode] == 0:
             OX_component = Component(resources_pdf, 4, resources_doc.load_page(4).rect)
         if OX_component is not None:
-            solution_object.add_child(ComponentOverlayObject(0, Coord(Ratio.mm_to_px(-1), Ratio.mm_to_px(0.5), 1), OX_component))
+            solution_object.add_child(ComponentOverlayObject(0, Coord(Ratio.mm_to_px(-1), 0, 1), OX_component))
 
         solution_object.add_child(ComponentOverlayObject(0, Coord(Ratio.mm_to_px(-1), 0, 2), type_component))
         solution_object.add_child(ComponentOverlayObject(0, Coord(Ratio.mm_to_px(5.5), 0, 2), solution_component))
@@ -131,7 +131,7 @@ def add_page_num(overlayer):
             page_num_object = TextOverlayObject(num-1, Coord(Ratio.mm_to_px(244), Ratio.mm_to_px(358.5), 4), "resources/fonts/Pretendard-Bold.ttf", 14, f"{num}", (0, 0, 0), fitz.TEXT_ALIGN_RIGHT)
         else:
             page_num_object = TextOverlayObject(num-1, Coord(Ratio.mm_to_px(20), Ratio.mm_to_px(358.5), 4), "resources/fonts/Pretendard-Bold.ttf", 14, f"{num}", (0, 0, 0), fitz.TEXT_ALIGN_LEFT)
-        page_num_object.overlay(overlayer, num-1, page_num_object.coord)
+        page_num_object.overlay(overlayer, page_num_object.coord)
             
 
 def build():
@@ -177,7 +177,7 @@ def build():
         
         paragraph.add_child(AreaOverlayObject(0, Coord(0,0,0), Ratio.mm_to_px(5)))
 
-    paragraph.overlay(overlayer, 0, Coord(0,0,0))
+    paragraph.overlay(overlayer, Coord(0,0,0))
     add_page_num(overlayer)
     new_doc.save("output/weekly_sol_test.pdf")
     resources_doc.close()

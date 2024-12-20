@@ -138,8 +138,8 @@ def build():
     new_doc = fitz.open()
 
     #setup
-    problem_dict = get_problem_dict("input\weekly_sol")
-    problem_list = get_problem_list("input\weekly_sol\item_list.txt")
+    problem_dict = get_problem_dict("input\weekly")
+    problem_list = get_problem_list("input\weekly\item_list.txt")
     sol_type_dict = get_sol_type_dict()
 
     with open("resources/commentary.json") as file:

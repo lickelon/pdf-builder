@@ -1,6 +1,7 @@
 import fitz
 from fitz import Rect, Page
 import numpy as np
+from pathlib import Path
 
 from utils.direction import Direction
 
@@ -46,3 +47,12 @@ class PdfUtils:
         new_page = new_doc.new_page(width=rect.width, height=rect.height)
         new_page.show_pdf_page(fitz.Rect(0,0,rect.width,rect.height), file, page_num, clip=rect)
         new_doc.save(file_name)
+
+    @staticmethod
+    def save_to_pdf(file: fitz.Document, file_name: str) -> None:
+        path = Path(file_name)
+        paths = list(path.parents)[::-1]
+        for parent_path in paths:
+            if parent_path.exists() == False:
+                parent_path.mkdir()
+        file.save(file_name)

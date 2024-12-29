@@ -64,7 +64,7 @@ def crop_all_kice():
         kc.save_original()
 
 if __name__ == '__main__':
-    from modules.weekly_ans import build
+    from modules.weekly_pro import build
     build()
     #kc_test()
     # with open("resources/KICEtopic.json", encoding="UTF-8") as file:

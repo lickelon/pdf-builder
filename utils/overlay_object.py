@@ -1,4 +1,5 @@
 from fitz import Rect
+import fitz
 from utils.component import Component, ComponentType
 from utils.coord import Coord
 import copy
@@ -42,6 +43,11 @@ class ListOverlayObject(OverlayObject):
             for oo in self.child:
                 oo.overlay(overlayer, absolute_coord + Coord(0, curr_height, 0))
                 curr_height += oo.get_height()
+        if self.align == 2:
+            curr_height = 0
+            for oo in self.child:
+                oo.overlay(overlayer, absolute_coord + Coord(0, curr_height, 0))
+                curr_height += oo.get_height() + self.left_height / len(self.child)
         pass
     def add_child(self, obj: OverlayObject):
         if obj.get_height() > self.left_height:
@@ -93,6 +99,21 @@ class ComponentOverlayObject(OverlayObject):
 
     def get_height(self):
         return self.component.src_rect.height
+    
+class ShapeOverlayObject(OverlayObject):
+    def __init__(self, page_num, coord, rect, color, radius = None):
+        self.rect = rect
+        self.color = color
+        self.radius = radius
+        super().__init__(page_num, coord)
+
+    def overlay(self, overlayer, absolute_coord):
+        overlayer.shape_overlay(self.page_num, absolute_coord, self.rect, self.color, self.radius)
+        super().overlay(overlayer, absolute_coord)
+    pass
+
+    def get_height(self):
+        return self.rect.height
 
 class TextOverlayObject(OverlayObject):
     def __init__(self, page_num, coord, font, size, text, color, text_align):
@@ -111,3 +132,6 @@ class TextOverlayObject(OverlayObject):
         #Error: text in paragraph should be wrapped by area
         return None
 
+    def get_width(self):
+        font = fitz.Font(fontfile=self.font)
+        return font.text_length(self.text, self.size)

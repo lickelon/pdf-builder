@@ -27,6 +27,10 @@ class Overlayer:
         tw.write_text(page, color=color)
         pass
 
+    def shape_overlay(self, page_num, coord, rect, color, radius = None):
+        page = self.doc.load_page(page_num)
+        page.draw_rect(fitz.Rect(coord.x, coord.y, coord.x + rect.width, coord.y + rect.height), color=color, fill=color, radius=radius)
+
     def pdf_overlay(self, page_num, coord, component):
         with fitz.open(component.src_pdf) as file:
             page = self.doc.load_page(page_num)

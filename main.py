@@ -9,7 +9,7 @@ from utils.solution_info import SolutionInfo
 from utils.overlay_object import *
 from utils.coord import Coord
 def kc_test():
-    folder_path = Path('input/kice_cropper')
+    folder_path = Path('input/1425')
     pdf_files = folder_path.glob('*.pdf')
 
     new_doc = fitz.open()
@@ -21,7 +21,8 @@ def kc_test():
         kc = KiceCropper(pdf_name=pdf_src_path)
         ret = kc.extract_problems(accuracy=10)
         print(f'extracted {ret} items')
-        #kc.save_original()
+        kc.save_original()
+        kc.save_caption_from_original()
         #kc.save_caption(caption_point=(2.5, 5), font_size=13)
 
         with fitz.open(pdf_src_path) as file:
@@ -64,9 +65,16 @@ def crop_all_kice():
         kc.save_original()
 
 if __name__ == '__main__':
-    from modules.weekly_pro import build
-    build()
-    #kc_test()
+    #from modules.weekly_main import build
+    #build()
+    print(fitz.__doc__)
+    from modules.builder import Builder
+    import json
+    with open("input/weekly_item.json", encoding='UTF8') as file:
+        items = json.load(file)['items']
+    bd = Builder(items)
+    bd.build()
+    # kc_test()
     # with open("resources/KICEtopic.json", encoding="UTF-8") as file:
     #     import json
     #     KICEtopic = json.load(file)

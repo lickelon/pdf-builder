@@ -43,7 +43,12 @@ class ListOverlayObject(OverlayObject):
             for oo in self.child:
                 oo.overlay(overlayer, absolute_coord + Coord(0, curr_height, 0))
                 curr_height += oo.get_height()
-        if self.align == 2:
+        elif self.align == 1:
+            curr_height = 0
+            for oo in self.child:
+                oo.overlay(overlayer, absolute_coord + Coord(0, curr_height, 0))
+                curr_height += oo.get_height() + self.left_height / max(len(self.child)-1, 1)
+        elif self.align == 2:
             curr_height = 0
             for oo in self.child:
                 oo.overlay(overlayer, absolute_coord + Coord(0, curr_height, 0))
@@ -56,6 +61,15 @@ class ListOverlayObject(OverlayObject):
             super().add_child(obj)
             self.left_height -= obj.get_height()
         return True
+    
+    def set_height(self, height):
+        self.height = height
+        self.left_height = height
+        for oo in self.child:
+            self.left_height -= oo.get_height()
+
+    def get_height(self):
+        return self.height - self.left_height
     pass
 
 class ParagraphOverlayObject(OverlayObject):
@@ -99,6 +113,20 @@ class ComponentOverlayObject(OverlayObject):
 
     def get_height(self):
         return self.component.src_rect.height
+    
+class ResizedComponentOverlayObject(OverlayObject):
+    def __init__(self, page_num, coord, component, ratio):
+        self.ratio = ratio
+        self.component = component
+        super().__init__(page_num, coord)
+
+    def overlay(self, overlayer, absolute_coord):
+        overlayer.pdf_overlay_with_resize(self.page_num, absolute_coord, self.component, self.ratio)
+        super().overlay(overlayer, absolute_coord)
+    pass
+
+    def get_height(self):
+        return self.component.src_rect.height*self.ratio
     
 class ShapeOverlayObject(OverlayObject):
     def __init__(self, page_num, coord, rect, color, radius = None):

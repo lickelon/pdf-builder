@@ -67,7 +67,7 @@ class ItemCropper:
         solutions = dict()
         for y in range(na.shape[0]):
             for x in range(na.shape[1]):
-                if np.count_nonzero(na[y][x]) == 1:
+                if np.count_nonzero(na[y][x]) < 3:
                     curr = na[y][x]
                     hexcode = self.rgb_to_hex(curr[0], curr[1], curr[2])
                     if hexcode in solutions:

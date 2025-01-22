@@ -8,6 +8,9 @@ from utils.direction import Direction
 from utils.pdf_utils import PdfUtils
 from utils.ratio import Ratio
 from utils.problem_info import ProblemInfo
+from utils.overlay_object import *
+
+from modules.overlayer import Overlayer
 
 class KiceCropper:
     def __init__(self, pdf_name: str) -> None:
@@ -172,7 +175,57 @@ class KiceCropper:
                 tw.write_text(new_page, color=(0,0,0))
                 new_doc.save(f"output/caption/{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}_caption.pdf")
                 #PdfUtils.extract_to_pdf(file, infos[i].page_num, infos[i].rect, f"output/caption/{os.path.basename(pdf_name)[:-4]} {i+1}번 지1_caption.pdf")
+    
+    def bake_origin(self, source):
+        text = TextOverlayObject(0, Coord(0,0,0), "resources/fonts/Pretendard-Regular.ttf", 12, source, (1,1,1), fitz.TEXT_ALIGN_CENTER)
+        text.get_width()
+        box = ShapeOverlayObject(0, Coord(0, 0, 0), Rect(0,0,Ratio.mm_to_px(4)+text.get_width(),Ratio.mm_to_px(5.5)), (0,0,0,0.5), 0.5/5.5)
+        text.coord = Coord(box.rect.width/2, Ratio.mm_to_px(4.3), 0)
+        box.add_child(text)
+        return box
+    
+    def code_to_text(self, problem_code):
+        subject_text = {
+            'P1' : '물1',
+            'P2' : '물2',
+            'C1' : '화1',
+            'C2' : '화2',
+            'B1' : '생1',
+            'B2' : '생2',
+            'E1' : '지1',
+            'E2' : '지2',
+        }
+        month_text = {
+            '06' : '6월',
+            '09' : '9월',
+            '11' : '대수능',
+            '01' : '예비시행',
+        }
+        return f"20{problem_code[7:9]}학년도 {month_text[problem_code[9:11]]} {int(problem_code[11:13])}번 {subject_text[problem_code[0:2]]}"
 
+    def save_caption_from_original(self):
+        for i in range(len(self.infos)):
+            new_doc = fitz.open()
+            overlayer = Overlayer(new_doc)
+            key = f'{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}'
+            code = self.get_question_code(key)
+            if code is None:
+                continue
+            origin = self.bake_origin(self.code_to_text(code))
+            origin.coord = Coord(Ratio.mm_to_px(0.25), Ratio.mm_to_px(0.25), 0)
+            original_pdf = f"KiceDB/{code[2:5]}/{code}/{code}_original.pdf"
+            with fitz.open(original_pdf) as file:
+                page = file.load_page(0)
+                component = Component(original_pdf, 0, page.rect)
+                co = ComponentOverlayObject(0, Coord(0, origin.get_height() + Ratio.mm_to_px(2), 0), component)
+            base = AreaOverlayObject(0, Coord(0,0,0), origin.get_height() + co.get_height() + Ratio.mm_to_px(2))
+            base.add_child(origin)
+            base.add_child(co)
+            new_page = new_doc.new_page(width=component.src_rect.width, height=base.get_height())
+            base.overlay(overlayer, Coord(0,0,0))
+            PdfUtils.save_to_pdf(new_doc, f"KiceDB/{code[2:5]}/{code}/{code}_caption.pdf")
+
+            
 if __name__ == '__main__':
     from pathlib import Path
     folder_path = Path('input/1425')

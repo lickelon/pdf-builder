@@ -2,9 +2,19 @@ import fitz
 from utils.ratio import Ratio
 from utils.coord import Coord
 
+class PdfManager:
+    def __init__(self):
+        self.open_pdfs = {}
+    
+    def get_doc(self, pdf_file):
+        if pdf_file not in self.open_pdfs:
+            self.open_pdfs[pdf_file] = fitz.open(pdf_file)
+        return self.open_pdfs[pdf_file]
+
 class Overlayer:
     def __init__(self, doc):
         self.doc = doc
+        self.pdf_manager = PdfManager()
         pass
     def add_page(self, base):
         rect = base.src_rect
@@ -32,9 +42,15 @@ class Overlayer:
         page.draw_rect(fitz.Rect(coord.x, coord.y, coord.x + rect.width, coord.y + rect.height), color=color, fill=color, radius=radius)
 
     def pdf_overlay(self, page_num, coord, component):
-        with fitz.open(component.src_pdf) as file:
-            page = self.doc.load_page(page_num)
-            page.show_pdf_page(fitz.Rect(coord.x,coord.y,coord.x+component.src_rect.width,coord.y+component.src_rect.height), file, component.src_page_num, clip=component.src_rect)
+        file = self.pdf_manager.get_doc(component.src_pdf)
+        page = self.doc.load_page(page_num)
+        page.show_pdf_page(fitz.Rect(coord.x,coord.y,coord.x+component.src_rect.width,coord.y+component.src_rect.height), file, component.src_page_num, clip=component.src_rect)
+        pass
+
+    def pdf_overlay_with_resize(self, page_num, coord, component, ratio):
+        file = self.pdf_manager.get_doc(component.src_pdf)
+        page = self.doc.load_page(page_num)
+        page.show_pdf_page(fitz.Rect(coord.x,coord.y,coord.x+component.src_rect.width*ratio,coord.y+component.src_rect.height*ratio), file, component.src_page_num, clip=component.src_rect)
         pass
 
 

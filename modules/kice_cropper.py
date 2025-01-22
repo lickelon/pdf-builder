@@ -156,9 +156,9 @@ class KiceCropper:
                 key = f'{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}'
                 code = self.get_question_code(key)
                 if code is None:
-                    PdfUtils.save_to_pdf(new_doc, f"KiceDB/others/{key}_original.pdf")
+                    PdfUtils.save_to_pdf(new_doc, f"T://THedu/KiceDB/others/{key}_original.pdf")
                 else:
-                    PdfUtils.save_to_pdf(new_doc, f"KiceDB/{code[2:5]}/{code}/{code}_original.pdf")
+                    PdfUtils.save_to_pdf(new_doc, f"T://THedu/KiceDB/{code[2:5]}/{code}/{code}_original.pdf")
                 #new_doc.save(f"output/original/{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}_original.pdf")
 
     def save_caption(self, caption_point: tuple, font_size: int) -> None:

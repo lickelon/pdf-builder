@@ -9,7 +9,7 @@ from utils.pdf_utils import PdfUtils
 from utils.ratio import Ratio
 from utils.problem_info import ProblemInfo
 from utils.overlay_object import *
-
+from utils.path import *
 from modules.overlayer import Overlayer
 
 class KiceCropper:
@@ -134,7 +134,7 @@ class KiceCropper:
             '대수능' : '11',
             '예비시행' : '01',
         }
-        with open("resources/KICEtopic.json", encoding="UTF-8") as file:
+        with open(RESOURCES_PATH + "/KICEtopic.json", encoding="UTF-8") as file:
             topic_code = json.load(file)
         
         parts = key.split(' ')
@@ -144,7 +144,7 @@ class KiceCropper:
         return code
 
     def save_original(self) -> None:
-        with open("resources/KICEtopic.json", encoding="UTF-8") as file:
+        with open(RESOURCES_PATH + "/KICEtopic.json", encoding="UTF-8") as file:
             KICEtopic = json.load(file)
         with fitz.open(self.pdf_name) as file:
             for i in range(len(self.infos)):
@@ -156,9 +156,9 @@ class KiceCropper:
                 key = f'{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}'
                 code = self.get_question_code(key)
                 if code is None:
-                    PdfUtils.save_to_pdf(new_doc, f"T://THedu/KiceDB/others/{key}_original.pdf")
+                    PdfUtils.save_to_pdf(new_doc, KICE_DB_PATH + f"/others/{key}_original.pdf", garbage=4)
                 else:
-                    PdfUtils.save_to_pdf(new_doc, f"T://THedu/KiceDB/{code[2:5]}/{code}/{code}_original.pdf")
+                    PdfUtils.save_to_pdf(new_doc, KICE_DB_PATH + f"/{code[2:5]}/{code}/{code}_original.pdf", garbage=4)
                 #new_doc.save(f"output/original/{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}_original.pdf")
 
     def save_caption(self, caption_point: tuple, font_size: int) -> None:
@@ -177,7 +177,7 @@ class KiceCropper:
                 #PdfUtils.extract_to_pdf(file, infos[i].page_num, infos[i].rect, f"output/caption/{os.path.basename(pdf_name)[:-4]} {i+1}번 지1_caption.pdf")
     
     def bake_origin(self, source):
-        text = TextOverlayObject(0, Coord(0,0,0), "resources/fonts/Pretendard-Regular.ttf", 12, source, (1,1,1), fitz.TEXT_ALIGN_CENTER)
+        text = TextOverlayObject(0, Coord(0,0,0), "Pretendard-Regular.ttf", 12, source, (1,1,1), fitz.TEXT_ALIGN_CENTER)
         text.get_width()
         box = ShapeOverlayObject(0, Coord(0, 0, 0), Rect(0,0,Ratio.mm_to_px(4)+text.get_width(),Ratio.mm_to_px(5.5)), (0,0,0,0.5), 0.5/5.5)
         text.coord = Coord(box.rect.width/2, Ratio.mm_to_px(4.3), 0)
@@ -213,7 +213,7 @@ class KiceCropper:
                 continue
             origin = self.bake_origin(self.code_to_text(code))
             origin.coord = Coord(Ratio.mm_to_px(0.25), Ratio.mm_to_px(0.25), 0)
-            original_pdf = f"KiceDB/{code[2:5]}/{code}/{code}_original.pdf"
+            original_pdf = KICE_DB_PATH + f"/{code[2:5]}/{code}/{code}_original.pdf"
             with fitz.open(original_pdf) as file:
                 page = file.load_page(0)
                 component = Component(original_pdf, 0, page.rect)
@@ -223,12 +223,12 @@ class KiceCropper:
             base.add_child(co)
             new_page = new_doc.new_page(width=component.src_rect.width, height=base.get_height())
             base.overlay(overlayer, Coord(0,0,0))
-            PdfUtils.save_to_pdf(new_doc, f"KiceDB/{code[2:5]}/{code}/{code}_caption.pdf")
+            PdfUtils.save_to_pdf(new_doc, KICE_DB_PATH + f"/{code[2:5]}/{code}/{code}_caption.pdf", garbage=4)
 
             
 if __name__ == '__main__':
     from pathlib import Path
-    folder_path = Path('input/1425')
+    folder_path = Path(INPUT_PATH + '/1425')
     pdf_files = folder_path.glob('*.pdf')
 
     for pdf_file in pdf_files:

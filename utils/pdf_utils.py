@@ -49,10 +49,10 @@ class PdfUtils:
         new_doc.save(file_name)
 
     @staticmethod
-    def save_to_pdf(file: fitz.Document, file_name: str) -> None:
+    def save_to_pdf(file: fitz.Document, file_name: str, garbage=0) -> None:
         path = Path(file_name)
         paths = list(path.parents)[::-1]
         for parent_path in paths:
             if parent_path.exists() == False:
                 parent_path.mkdir()
-        file.save(file_name)
+        file.save(file_name, garbage=garbage)

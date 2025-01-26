@@ -1,6 +1,7 @@
 import fitz
 from utils.ratio import Ratio
 from utils.coord import Coord
+from utils.path import *
 
 class PdfManager:
     def __init__(self):
@@ -23,7 +24,7 @@ class Overlayer:
             new_page.show_pdf_page(fitz.Rect(0,0,rect.width,rect.height), file, base.src_page_num, clip=rect)
 
     def text_overlay(self, page_num, coord, font_file, size, text, color, text_align):
-        font = fitz.Font(fontfile=font_file)
+        font = fitz.Font(fontfile=RESOURCES_PATH+"/fonts/"+font_file)
         page = self.doc.load_page(page_num)
         tw = fitz.TextWriter(page.rect)
         x = coord.x

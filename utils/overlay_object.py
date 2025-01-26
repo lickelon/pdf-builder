@@ -3,7 +3,7 @@ import fitz
 from utils.component import Component, ComponentType
 from utils.coord import Coord
 import copy
-
+from utils.path import *
 class OverlayObject():
     def __init__(self, page_num: int, coord: Coord):
         self.page_num = page_num
@@ -161,5 +161,5 @@ class TextOverlayObject(OverlayObject):
         return None
 
     def get_width(self):
-        font = fitz.Font(fontfile=self.font)
+        font = fitz.Font(fontfile=RESOURCES_PATH+"/fonts/"+self.font)
         return font.text_length(self.text, self.size)

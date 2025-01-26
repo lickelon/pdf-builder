@@ -119,6 +119,9 @@ class ItemCropper:
     
     def get_answer_from_file(self, file: fitz.Document):
         page = file.load_page(0)
-        srect = self.solutions["00FF00"].rect
+        try:
+            srect = self.solutions["00FF00"].rect
+        except:
+            print(file.name)
         text = page.get_text("text", clip=srect)
         return text[2:3]

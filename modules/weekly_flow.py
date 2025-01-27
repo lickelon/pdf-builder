@@ -113,7 +113,6 @@ class FlowBuilder:
             for oo in para.child:
                 oo.set_height(height)
             para.rect.y1 = height + Ratio.mm_to_px(22)
-            print(height)
 
         if len(para_lists) > 1:
             height = max(para_lists[0].child[0].height, para_lists[1].child[0].height)
@@ -164,11 +163,6 @@ class FlowBuilder:
             to.overlay(self.overlayer, Coord(Ratio.mm_to_px(36), Ratio.mm_to_px(19), 0))
             ti = TextOverlayObject(i, Coord(Ratio.mm_to_px(23.1), Ratio.mm_to_px(19), 0), "Montserrat-Bold.ttf", 32.5, str(self.index), (1, 1, 1), fitz.TEXT_ALIGN_CENTER)
             ti.overlay(self.overlayer, Coord(Ratio.mm_to_px(23.1), Ratio.mm_to_px(19), 0))
-            
-            
-        #TODO 나머지 잡다한 것
-
-        #짝수페이지라면 메모 추가
 
         self.resources_doc.close()
         return new_doc

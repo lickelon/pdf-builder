@@ -223,7 +223,6 @@ class MainsolBuilder:
         self.overlayer = Overlayer(new_doc)
 
         item_list = self.get_item_list()
-        print(item_list)
         if len(item_list) == 0:
             return None
 

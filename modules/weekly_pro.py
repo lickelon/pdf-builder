@@ -157,7 +157,6 @@ class ProblemBuilder:
     
     def build(self):
         new_doc = fitz.open()
-        print(self.page)
         #setup
         self.problem_dict = get_problem_dict(ITEM_DB_PATH)
 

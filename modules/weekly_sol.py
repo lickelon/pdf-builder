@@ -92,7 +92,10 @@ class SolutionBuilder:
                 continue
             solution_object = AreaOverlayObject(0, Coord(0,0,0), 0)
             solution_component = Component(item_pdf, 0, solution_info.rect)
-            res_page_num = self.get_sol_type_dict()[commentary_data[solution_info.hexcode]]
+            sol_type_dict = self.get_sol_type_dict()
+            if commentary_data.get(solution_info.hexcode) not in sol_type_dict:
+                continue
+            res_page_num = sol_type_dict[commentary_data[solution_info.hexcode]]
             type_component = self.get_component_on_resources(res_page_num)
             OX_component = None
             if sTF[solution_info.hexcode] == 1:

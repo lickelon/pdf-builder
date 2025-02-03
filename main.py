@@ -28,3 +28,5 @@ def build_weekly_paper(input = INPUT_PATH+"/weekly_item.json", output = OUTPUT_P
 if __name__ == '__main__':
     build_weekly_paper()
     pass
+
+#numpy version 1.46 으로 하였을 때 정상

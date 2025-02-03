@@ -118,7 +118,7 @@ class ProblemBuilder:
     
     def bake_problem(self, problem_code, problem_num):
         problem = AreaOverlayObject(0, Coord(0,0,0), 0)
-        if problem_code[5:7] == 'KC':
+        if problem_code[5:7] == 'KC':       #kice problem
             item_code = problem_code
             item_pdf = get_item_path(item_code) + f"/{item_code[2:5]}/{item_code}/{item_code}_original.pdf"
             problem_title = self.bake_problem_title(problem_num, self.code_to_text(problem_code))
@@ -130,9 +130,9 @@ class ProblemBuilder:
                 problem_object = ComponentOverlayObject(0, Coord(0, problem.height, 0), component)
                 problem.add_child(problem_object)
                 problem.height += problem_object.get_height()
-            problem.height += Ratio.mm_to_px(70)
+            problem.height += Ratio.mm_to_px(10)    #minimal space between kice problems
             pass
-        else:
+        else:                               #item problem
             problem_title = self.bake_problem_title(problem_num)
             problem.add_child(problem_title)
             problem.height += problem_title.get_height()
@@ -147,7 +147,7 @@ class ProblemBuilder:
                 problem_object.add_child(white_box)
                 problem.add_child(problem_object)
                 problem.height += problem_object.get_height()
-            problem.height += Ratio.mm_to_px(70)
+            problem.height += Ratio.mm_to_px(70)    #minimal space between item problems
         return problem
     
     def get_unit_title(self, unit_code):

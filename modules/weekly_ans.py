@@ -65,7 +65,7 @@ class AnswerBuilder:
     
     def bake_unit_cover(self, unit_code, num):
         component = self.get_component_on_resources(2+(num-1)%3)
-        unit_cover = AreaOverlayObject(0, Coord(0,0,0), Ratio.mm_to_px(30))
+        unit_cover = AreaOverlayObject(0, Coord(0,0,0), Ratio.mm_to_px(20))
         unit_cover.add_child(ComponentOverlayObject(0, Coord(0,0,0), component))
         unit_cover.add_child(TextOverlayObject(0, Coord(Ratio.mm_to_px(49), Ratio.mm_to_px(6), 1), "Pretendard-Bold.ttf", 13, f"{num}. {self.get_unit_title(unit_code)}", tuple([int(num%3 == 1)]*3), fitz.TEXT_ALIGN_CENTER))
         return unit_cover
@@ -74,6 +74,7 @@ class AnswerBuilder:
         unit = self.bake_unit_cover(unit_code, num)
         component = self.get_component_on_resources(5+(num-1)%3)
         cnt = len(unit_problem_answers)
+
         for i in range(1,(cnt-1)//5+1):
             unit.add_child(ComponentOverlayObject(0, Coord(0,unit.get_height(),0), component))
             unit.height += component.src_rect.height
@@ -86,8 +87,8 @@ class AnswerBuilder:
         else:
             unit.add_child(ComponentOverlayObject(0, Coord(0,unit.get_height(),0), component))
             unit.height += component.src_rect.height
-        
-        default_y = Ratio.mm_to_px(30+6.5)
+
+        default_y = Ratio.mm_to_px(20+6.5)
         default_num_x = Ratio.mm_to_px(4.9)
         default_ans_x = Ratio.mm_to_px(14.7)
         for i in range(len(unit_problem_answers)):

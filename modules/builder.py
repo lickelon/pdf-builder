@@ -46,24 +46,28 @@ class Builder:
                 page_num_object = TextOverlayObject(num-4, Coord(Ratio.mm_to_px(20), Ratio.mm_to_px(358.5), 4), "Pretendard-Bold.ttf", 14, f"{num}", (0, 0, 0), fitz.TEXT_ALIGN_LEFT)
             page_num_object.overlay(overlayer, page_num_object.coord)
 
-    def build(self, output):
-        print(f"Weekly Paper Build Start")
+    def build(self, output, log_callback=None):
+        if log_callback:
+            log_callback("Weekly Paper Build Start")
         total = fitz.open()
         fc_pages = []
         index = 1
         for topic_set in self.items.items():
-            print(f"Building topic {topic_set[0]}")
+            if log_callback:
+                log_callback(f"Building topic {topic_set[0]}")
 
-            print("  (1) Building Flow...", end=' ', flush=True)
+            if log_callback:
+                log_callback("  (1) Building Flow...")
             result = fitz.open()
             fb = FlowBuilder(topic_set[0], topic_set[1], index)
             new_doc = fb.build()
-            fc_pages.append((total.page_count, (fb.overlayer.doc.page_count+1)//2))
+            fc_pages.append((total.page_count, (fb.overlayer.doc.page_count + 1) // 2))
             result.insert_pdf(new_doc)
-            # new_doc.save(f"output/result_fb_{topic_set[0]}.pdf")
-            print("Done!")
+            if log_callback:
+                log_callback("Done!")
 
-            print("  (2) Building Main Solution...", end=' ', flush=True)
+            if log_callback:
+                log_callback("  (2) Building Main Solution...")
             mb = MainsolBuilder(topic_set[0], topic_set[1])
             new_doc = mb.build()
             flag = 0
@@ -73,44 +77,52 @@ class Builder:
                 overlayer.add_page(Component(RESOURCES_PATH + "/weekly_pro_resources.pdf", 4, result.load_page(0).rect))
 
                 result.insert_pdf(new_doc)
-                # new_doc.save(f"output/result_mb_{topic_set[0]}.pdf")
-                print("Done!")
+                if log_callback:
+                    log_callback("Done!")
             else:
-                print("Skipped!")
+                if log_callback:
+                    log_callback("Skipped!")
 
-            print("  (3) Building Problems...", end=' ', flush=True)
+            if log_callback:
+                log_callback("  (3) Building Problems...")
             pb = ProblemBuilder(topic_set[0], topic_set[1], flag)
             new_doc = pb.build()
-            # new_doc.save(f"output/result_pb_{topic_set[0]}.pdf")
-            print("Done!")
+            if log_callback:
+                log_callback("Done!")
             result.insert_pdf(new_doc)
-            
-            # result.save(f"output/result_{topic_set[0]}.pdf")
-            print(f"Building topic {topic_set[0]} Complete! [{index}/{len(self.items)}]")
+
+            if log_callback:
+                log_callback(f"Building topic {topic_set[0]} Complete! [{index}/{len(self.items)}]")
             total.insert_pdf(result)
             index += 1
 
-        print("Building Solutions...", end=' ', flush=True)
+        if log_callback:
+            log_callback("Building Solutions...")
         ab = AnswerBuilder(self.items.items())
         new_doc = ab.build()
         total.insert_pdf(new_doc)
-        
+
         sb = SolutionBuilder(self.items.items())
         new_doc = sb.build()
         total.insert_pdf(new_doc)
-        print("Done!")
+        if log_callback:
+            log_callback("Done!")
 
-        print("Post-processing...", end=' ', flush=True)
+        if log_callback:
+            log_callback("Post-processing...")
         overlayer = Overlayer(total)
         for i in range(len(fc_pages)):
-            topic_list = self.bake_topic_list(fc_pages[i][0]+1, i)
-            topic_list.overlay(overlayer, Coord(Ratio.mm_to_px(159), Ratio.mm_to_px(16.5), 0))
-            if fc_pages[i][1] == 2:
-                topic_list = self.bake_topic_list(fc_pages[i][0]+3, i)
+            if i < len(fc_pages):
+                topic_list = self.bake_topic_list(fc_pages[i][0] + 1, i)
                 topic_list.overlay(overlayer, Coord(Ratio.mm_to_px(159), Ratio.mm_to_px(16.5), 0))
+                if fc_pages[i][1] == 2:
+                    topic_list = self.bake_topic_list(fc_pages[i][0] + 3, i)
+                    topic_list.overlay(overlayer, Coord(Ratio.mm_to_px(159), Ratio.mm_to_px(16.5), 0))
         self.add_page_num(overlayer)
-        print("Done!")
+        if log_callback:
+            log_callback("Done!")
 
         PdfUtils.save_to_pdf(total, output, garbage=4)
-        print(f"Build Complete! ({output})")
+        if log_callback:
+            log_callback(f"Build Complete! ({output})")
         pass

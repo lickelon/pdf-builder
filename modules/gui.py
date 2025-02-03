@@ -1,11 +1,13 @@
 from utils.path import *
 from utils.parse_code import *
+from os import environ
+import subprocess
 import sys
 import os
 import json
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit,
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QMenu,
                              QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QGridLayout,
-                             QHeaderView, QCheckBox, QDialog, QVBoxLayout, QLabel)
+                             QHeaderView, QCheckBox, QDialog, QVBoxLayout, QLabel, QSizePolicy)
 from PyQt5.QtCore import Qt
 from main import build_weekly_paper
 from PyQt5.QtGui import QIcon
@@ -14,15 +16,33 @@ from rasterizer import *
 from utils.path import *
 from utils.parse_code import *
 
+
+def suppress_qt_warnings():
+    environ["QT_DEVICE_PIXEL_RATIO"] = "0"
+    environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+    environ["QT_SCREEN_SCALE_FACTORS"] = "1"
+    environ["QT_SCALE_FACTOR"] = "1"
+
+
+class QPushButton(QPushButton):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+
+
+# Add the following import at the top
+from PyQt5.QtWidgets import QTextEdit
+
 class DatabaseManager(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
         self.loadData()
+        self.add_context_menu()
 
     def initUI(self):
         self.setWindowTitle('Database Manager')
-        self.setGeometry(100, 100, 1200, 600)
+        self.setGeometry(100, 100, 1200, 600)  # Adjusted width to accommodate log window
 
         # Main widget and layout
         main_widget = QWidget()
@@ -30,24 +50,21 @@ class DatabaseManager(QMainWindow):
         layout = QHBoxLayout()
         main_widget.setLayout(layout)
 
-        # Store original pool data
-        self.original_pool_data = []
-
         # Pool section
         pool_layout = QVBoxLayout()
 
         # Top buttons for Pool
-        pool_top_layout = QHBoxLayout()
+        pool_top_layout = QVBoxLayout()
         self.deselect_btn = QPushButton('DESELECT POOL')
         self.sort_btn = QPushButton('SORT POOL')
         pool_top_layout.addWidget(self.deselect_btn)
         pool_top_layout.addWidget(self.sort_btn)
-        pool_top_layout.addStretch()
         pool_layout.addLayout(pool_top_layout)
 
-        # Pool table with fixed column widths
+        # Pool table with fixed dimensions
         self.pool_table = QTableWidget()
         self.pool_table.setColumnCount(3)
+        self.pool_table.setFixedHeight(550)
         pool_layout.addWidget(self.pool_table)
         self.pool_table.setHorizontalHeaderLabels(['Item Code', 'Topic', 'Order'])
 
@@ -56,38 +73,51 @@ class DatabaseManager(QMainWindow):
         self.pool_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.pool_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
 
-        self.pool_table.setColumnWidth(0, 140)  # Item Code
-        self.pool_table.setColumnWidth(1, 60)  # Topic
-        self.pool_table.setColumnWidth(2, 100)  # Order (hidden)
+        self.pool_table.setColumnWidth(0, 120)  # Item Code
+        self.pool_table.setColumnWidth(1, 50)  # Topic
+        self.pool_table.setColumnWidth(2, 0)  # Order (hidden)
 
-        # Set the total width of the pool_table
-        total_pool_width = 140 + 60  # Sum of visible columns
+        # Calculate and set fixed total width
+        total_width = sum([self.pool_table.columnWidth(i) for i in range(3)])  # Exclude hidden Order column
+        self.pool_table.setFixedWidth(total_width + 50)
 
         # Hide Order column
         self.pool_table.hideColumn(2)
 
-        # Set selection mode for Pool table
-        self.pool_table.setSelectionMode(QTableWidget.SingleSelection)
-        self.pool_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.pool_table.installEventFilter(self)
-
-        # Buttons
+        # Middle buttons
         button_layout = QVBoxLayout()
         self.transfer_btn = QPushButton('→')
         self.add_btn = QPushButton('+')
         self.remove_btn = QPushButton('-')
+        self.up_btn = QPushButton('▲')
+        self.down_btn = QPushButton('▼')
         button_layout.addWidget(self.transfer_btn)
         button_layout.addWidget(self.add_btn)
         button_layout.addWidget(self.remove_btn)
-        button_layout.addWidget(self.sort_btn)
+        button_layout.addWidget(self.up_btn)
+        button_layout.addWidget(self.down_btn)
 
-        # List table
+        # List section
+        list_layout = QVBoxLayout()
+
+        # Top buttons for List
+        list_top_layout = QVBoxLayout()
+        self.list_deselect_btn = QPushButton('DESELECT LIST')
+        self.list_sort_btn = QPushButton('SORT LIST')
+        self.list_renumber_btn = QPushButton('RENUMBER')
+        list_top_layout.addWidget(self.list_deselect_btn)
+        list_top_layout.addWidget(self.list_sort_btn)
+        list_top_layout.addWidget(self.list_renumber_btn)
+        list_layout.addLayout(list_top_layout)
+
+        # List table with fixed dimensions
         self.list_table = QTableWidget()
         self.list_table.setColumnCount(6)
+        self.list_table.setFixedHeight(550)
         self.list_table.setHorizontalHeaderLabels(['Item Code', 'Item Num',
                                                    'FC_para', 'Mainsub', 'Topic in Book', 'Order'])
 
-        # Set column widths for List table
+        # Set fixed column widths for List table
         self.list_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.list_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.list_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
@@ -95,64 +125,61 @@ class DatabaseManager(QMainWindow):
         self.list_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)
         self.list_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Fixed)
 
+        # Set exact column widths
         self.list_table.setColumnWidth(0, 140)  # Item Code
-        self.list_table.setColumnWidth(1, 40)  # Item Num
-        self.list_table.setColumnWidth(2, 60)  # FC_para
-        self.list_table.setColumnWidth(3, 60)  # Mainsub
-        self.list_table.setColumnWidth(4, 80)  # Topic in Book
-        self.list_table.setColumnWidth(5, 100)  # Order
+        self.list_table.setColumnWidth(1, 80)  # Item Num
+        self.list_table.setColumnWidth(2, 80)  # FC_para
+        self.list_table.setColumnWidth(3, 80)  # Mainsub
+        self.list_table.setColumnWidth(4, 100)  # Topic in Book
+        self.list_table.setColumnWidth(5, 0)  # Order (hidden)
 
-        # Set the total width of the list_table
-        total_list_width = 140 + 40 + 60 + 60 + 80  # Sum of visible columns
-
-        # Hide Order column in List table
+        # Calculate and set fixed total width
+        total_width = sum([self.list_table.columnWidth(i) for i in range(5)])  # Exclude hidden Order column
+        self.list_table.setFixedWidth(500)
+        # Hide Order column
         self.list_table.hideColumn(5)
 
-        # List table top layout
-        list_top_layout = QHBoxLayout()
-        self.list_deselect_btn = QPushButton('DESELECT LIST')
-        self.list_sort_btn = QPushButton('SORT LIST')
-        list_top_layout.addWidget(self.list_deselect_btn)
-        list_top_layout.addWidget(self.list_sort_btn)
-        list_top_layout.addStretch()
-
-        # Create right layout for List
-        list_layout = QVBoxLayout()
-        list_layout.addLayout(list_top_layout)
         list_layout.addWidget(self.list_table)
 
-        self.list_table.setSelectionMode(QTableWidget.SingleSelection)
-        self.list_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.list_table.installEventFilter(self)
-
-        # Add up/down buttons for List
-        list_button_layout = QVBoxLayout()
-        self.up_btn = QPushButton('▲')
-        self.down_btn = QPushButton('▼')
+        # Right buttons
+        right_button_layout = QVBoxLayout()
         self.book_name_label = QLabel('BOOK NAME')
         self.book_name_label.setAlignment(Qt.AlignCenter)
+        self.book_name_input = QLineEdit()
         self.create_pdfs_btn = QPushButton('CREATE PDFs')
         self.export_json_btn = QPushButton('EXPORT JSON')
-        self.book_name_input = QLineEdit()
         self.build_weekly_paper_by_gui_btn = QPushButton('BUILD WEEKLY')
         self.rasterize_pdf_btn = QPushButton('RASTERIZE PDF')
-        list_button_layout.addWidget(self.up_btn)
-        list_button_layout.addWidget(self.down_btn)
-        list_button_layout.addWidget(self.book_name_label)
-        list_button_layout.addWidget(self.book_name_input)
-        list_button_layout.addWidget(self.create_pdfs_btn)
-        list_button_layout.addWidget(self.export_json_btn)
-        list_button_layout.addWidget(self.build_weekly_paper_by_gui_btn)
-        list_button_layout.addWidget(self.rasterize_pdf_btn)
-        list_button_layout.addStretch()
+        self.log_window = QTextEdit()
+        self.log_window.setReadOnly(True)
+
+        right_button_layout.addWidget(self.book_name_label)
+        right_button_layout.addWidget(self.book_name_input)
+        right_button_layout.addWidget(self.create_pdfs_btn)
+        right_button_layout.addWidget(self.export_json_btn)
+        right_button_layout.addWidget(self.build_weekly_paper_by_gui_btn)
+        right_button_layout.addWidget(self.rasterize_pdf_btn)
+        right_button_layout.addStretch()
+
+        right_button_layout.addWidget(self.log_window)
+        self.log_window.setFixedHeight(300)
+        # Log window
+
 
         # Add layouts to main layout
         layout.addLayout(pool_layout)
         layout.addLayout(button_layout)
-        right_layout = QHBoxLayout()
-        right_layout.addLayout(list_layout)
-        right_layout.addLayout(list_button_layout)
-        layout.addLayout(right_layout)
+        layout.addLayout(list_layout)
+        layout.addLayout(right_button_layout)
+
+        # Set selection mode and event filters
+        self.pool_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.pool_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.pool_table.installEventFilter(self)
+
+        self.list_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.list_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.list_table.installEventFilter(self)
 
         # Connect signals
         self.transfer_btn.clicked.connect(self.transfer_items)
@@ -162,6 +189,7 @@ class DatabaseManager(QMainWindow):
         self.deselect_btn.clicked.connect(self.deselect_pool_items)
         self.list_sort_btn.clicked.connect(self.sort_list_by_order)
         self.list_deselect_btn.clicked.connect(self.deselect_list_items)
+        self.list_renumber_btn.clicked.connect(self.renumber_list_items)
         self.pool_table.horizontalHeader().sectionClicked.connect(self.show_filter_dialog)
         self.list_table.horizontalHeader().sectionClicked.connect(self.sort_list)
         self.up_btn.clicked.connect(self.move_row_up)
@@ -170,6 +198,9 @@ class DatabaseManager(QMainWindow):
         self.export_json_btn.clicked.connect(self.export_to_json)
         self.build_weekly_paper_by_gui_btn.clicked.connect(self.build_weekly_paper_by_gui)
         self.rasterize_pdf_btn.clicked.connect(self.rasterize_pdf_by_gui)
+
+    def log_message(self, message):
+        self.log_window.append(message)
 
     def check_and_remove_empty_rows(self):
         for row in range(self.list_table.rowCount() - 1, -1, -1):
@@ -291,8 +322,17 @@ class DatabaseManager(QMainWindow):
             self.list_table.setItem(current_row, i, QTableWidgetItem(""))
 
     def sort_pool_by_order(self):
-        self.pool_data.sort(key=lambda x: x['order'])
-        self.update_pool_table()
+        # Get currently displayed items
+        current_items = []
+        for row in range(self.pool_table.rowCount()):
+            item_code = self.pool_table.item(row, 0).text()
+            topic = self.pool_table.item(row, 1).text()
+            order = self.pool_table.item(row, 2).text()
+            current_items.append({'item_code': item_code, 'topic': topic, 'order': order})
+
+        # Sort current items
+        current_items.sort(key=lambda x: x['order'])
+        self.update_pool_table(current_items)
 
     def deselect_pool_items(self):
         self.pool_table.clearSelection()
@@ -415,13 +455,20 @@ class DatabaseManager(QMainWindow):
             dialog = FilterDialog(self)
             dialog.exec_()
 
+    def renumber_list_items(self):
+        for i in range(self.list_table.rowCount()):
+            self.list_table.setItem(i, 1, QTableWidgetItem(str(i + 1)))
 
     def create_pdfs_gui(self):
         item_list = []
         for row in range(self.list_table.rowCount()):
             item_code = self.list_table.item(row, 0).text() if self.list_table.item(row, 0) else None
             item_list.append(item_code)
-        create_pdfs(item_list)
+        self.log_message("Starting PDF creation...")
+        try:
+            create_pdfs(item_list, log_callback=self.log_message)
+        except Exception as e:
+            self.log_message(f"Error during PDF creation: {e}")
 
     def export_to_json(self):
         book_name = self.book_name_input.text()
@@ -441,23 +488,68 @@ class DatabaseManager(QMainWindow):
                 "topic_in_book": topic_in_book
             })
 
-        with open(os.path.join(INPUT_PATH, f'weekly_item_{book_name}.json'), 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        self.log_message("Starting JSON export...")
+        try:
+            with open(os.path.join(INPUT_PATH, f'weekly_item_{book_name}.json'), 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+            self.log_message("JSON export completed successfully.")
+        except Exception as e:
+            self.log_message(f"Error during JSON export: {e}")
 
     def build_weekly_paper_by_gui(self):
         book_name = self.book_name_input.text()
         input_path = os.path.join(INPUT_PATH, f"weekly_item_{book_name}.json")
         output_path = os.path.join(OUTPUT_PATH, f"output_{book_name}.pdf")
 
+        self.log_message("Starting weekly paper build...")
         try:
-            build_weekly_paper(input=input_path, output=output_path)
+            build_weekly_paper(input=input_path, output=output_path, log_callback=self.log_message)
         except Exception as e:
-            print(f"Error: {e}")
+            self.log_message(f"Error during weekly paper build: {e}")
 
     def rasterize_pdf_by_gui(self):
         book_name = self.book_name_input.text()
-        add_watermark_and_rasterize(os.path.join(OUTPUT_PATH, f"output_{book_name}.pdf"),
-                                    os.path.join(OUTPUT_PATH, f"output_{book_name}_R.pdf"))
+        self.log_message("Starting PDF rasterization...")
+        try:
+            add_watermark_and_rasterize(os.path.join(OUTPUT_PATH, f"output_{book_name}.pdf"),
+                                        os.path.join(OUTPUT_PATH, f"output_{book_name}_R.pdf"))
+            self.log_message("PDF rasterization completed successfully.")
+        except Exception as e:
+            self.log_message(f"Error during PDF rasterization: {e}")
+
+    def add_context_menu(self):
+        self.pool_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.pool_table.customContextMenuRequested.connect(self.show_context_menu)
+
+        self.list_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_table.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, pos):
+        sender = self.sender()
+        row = sender.rowAt(pos.y())
+
+        if row >= 0:
+            item_code = sender.item(row, 0).text()
+            menu = QMenu()
+            open_action = menu.addAction("Open Folder")
+            action = menu.exec_(sender.mapToGlobal(pos))
+            if action == open_action:
+                self.open_item_folder(item_code)
+
+    def open_item_folder(self, item_code):
+        # Base folder selection
+        base_path = KICE_DB_PATH if item_code[5:7] == 'KC' else ITEM_DB_PATH
+        topic = item_code[2:5]
+
+        # Construct and normalize path
+        folder_path = os.path.normpath(os.path.join(base_path, topic, item_code))
+
+        if os.path.exists(folder_path):
+            if os.name == 'nt':
+                try:
+                    subprocess.run(['explorer', folder_path], check=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Error: {e}")
 
     def eventFilter(self, obj, event):
         if obj in [self.pool_table, self.list_table]:
@@ -576,6 +668,9 @@ class FilterDialog(QDialog):
 
 
 if __name__ == '__main__':
+
+    suppress_qt_warnings()
+
     app = QApplication(sys.argv)
     app.setStyle('Fusion')  # Apply Fusion style
     ex = DatabaseManager()

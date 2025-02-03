@@ -44,6 +44,10 @@ def convert_hwp_to_pdf(item_code):
         # 2) PDF 변환 시도 (최대 3회)
         for attempt in range(3):
             pythoncom.CoInitialize()
+            if attempt > 0:
+                print(f"Failed to convert {item_code} to PDF. Retrying...")
+                time.sleep(0.5)
+
             try:
                 with hwp_lock:
                     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject")
@@ -61,7 +65,6 @@ def convert_hwp_to_pdf(item_code):
                         return pdf_path
                     elif attempt == 2:  # 마지막 시도였다면
                         return pdf_path  # 크기가 작아도 반환
-
             except Exception as e:
                 if attempt == 2:  # 마지막 시도에서 실패
                     return None
@@ -80,7 +83,7 @@ def convert_hwp_to_pdf(item_code):
     except Exception as e:
         return None
 
-def create_pdfs(item_codes):
+def create_pdfs(item_codes, log_callback=None):
     total_files = len(item_codes)
     completed = 0
 
@@ -101,6 +104,8 @@ def create_pdfs(item_codes):
                 if pdf_path:
                     completed += 1
                     progress = int((completed / total_files) * 100)
-                    print(f"Progress: {progress}% - Converted: {os.path.basename(file)}")
+                    if log_callback:
+                        log_callback(f"Progress: {progress}% - Converted: {os.path.basename(file)}")
             except Exception as e:
-                print(f"Error processing {file}: {str(e)}")
+                if log_callback:
+                    log_callback(f"Error processing {file}: {str(e)}")

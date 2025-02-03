@@ -19,11 +19,14 @@ def crop_all_kice(input = INPUT_PATH + '/1425'):
         kc.save_original()
         kc.save_caption_from_original()
 
-def build_weekly_paper(input = INPUT_PATH+"/weekly_item.json", output = OUTPUT_PATH + "/output.pdf"):
+def build_weekly_paper(input=INPUT_PATH+"/weekly_item.json", output=OUTPUT_PATH + "/output.pdf", log_callback=None):
+    if log_callback:
+        log_callback("Weekly Paper Build Start")
+        log_callback(f"Building {input} to {output}")
     with open(input, encoding='UTF8') as file:
         items = json.load(file)
     bd = Builder(items)
-    bd.build(output)
+    bd.build(output, log_callback=log_callback)
 
 if __name__ == '__main__':
     build_weekly_paper()

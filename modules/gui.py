@@ -3,13 +3,16 @@ from utils.parse_code import *
 import sys
 import os
 import json
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QLineEdit,
                              QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QGridLayout,
                              QHeaderView, QCheckBox, QDialog, QVBoxLayout, QLabel)
 from PyQt5.QtCore import Qt
 from main import build_weekly_paper
 from PyQt5.QtGui import QIcon
-
+from hwp2pdf import *
+from rasterizer import *
+from utils.path import *
+from utils.parse_code import *
 
 class DatabaseManager(QMainWindow):
     def __init__(self):
@@ -126,12 +129,21 @@ class DatabaseManager(QMainWindow):
         list_button_layout = QVBoxLayout()
         self.up_btn = QPushButton('▲')
         self.down_btn = QPushButton('▼')
+        self.book_name_label = QLabel('BOOK NAME')
+        self.book_name_label.setAlignment(Qt.AlignCenter)
+        self.create_pdfs_btn = QPushButton('CREATE PDFs')
         self.export_json_btn = QPushButton('EXPORT JSON')
+        self.book_name_input = QLineEdit()
         self.build_weekly_paper_by_gui_btn = QPushButton('BUILD WEEKLY')
+        self.rasterize_pdf_btn = QPushButton('RASTERIZE PDF')
         list_button_layout.addWidget(self.up_btn)
         list_button_layout.addWidget(self.down_btn)
+        list_button_layout.addWidget(self.book_name_label)
+        list_button_layout.addWidget(self.book_name_input)
+        list_button_layout.addWidget(self.create_pdfs_btn)
         list_button_layout.addWidget(self.export_json_btn)
         list_button_layout.addWidget(self.build_weekly_paper_by_gui_btn)
+        list_button_layout.addWidget(self.rasterize_pdf_btn)
         list_button_layout.addStretch()
 
         # Add layouts to main layout
@@ -154,8 +166,10 @@ class DatabaseManager(QMainWindow):
         self.list_table.horizontalHeader().sectionClicked.connect(self.sort_list)
         self.up_btn.clicked.connect(self.move_row_up)
         self.down_btn.clicked.connect(self.move_row_down)
+        self.create_pdfs_btn.clicked.connect(self.create_pdfs_gui)
         self.export_json_btn.clicked.connect(self.export_to_json)
         self.build_weekly_paper_by_gui_btn.clicked.connect(self.build_weekly_paper_by_gui)
+        self.rasterize_pdf_btn.clicked.connect(self.rasterize_pdf_by_gui)
 
     def check_and_remove_empty_rows(self):
         for row in range(self.list_table.rowCount() - 1, -1, -1):
@@ -401,7 +415,16 @@ class DatabaseManager(QMainWindow):
             dialog = FilterDialog(self)
             dialog.exec_()
 
+
+    def create_pdfs_gui(self):
+        item_list = []
+        for row in range(self.list_table.rowCount()):
+            item_code = self.list_table.item(row, 0).text() if self.list_table.item(row, 0) else None
+            item_list.append(item_code)
+        create_pdfs(item_list)
+
     def export_to_json(self):
+        book_name = self.book_name_input.text()
         data = []
         for row in range(self.list_table.rowCount()):
             item_num = self.list_table.item(row, 1).text() if self.list_table.item(row, 1) else None
@@ -418,12 +441,23 @@ class DatabaseManager(QMainWindow):
                 "topic_in_book": topic_in_book
             })
 
-        with open(os.path.join(INPUT_PATH, 'weekly_item_auto.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(INPUT_PATH, f'weekly_item_{book_name}.json'), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     def build_weekly_paper_by_gui(self):
-        self.export_to_json()
-        build_weekly_paper(input=INPUT_PATH + "/weekly_item_auto.json", output=OUTPUT_PATH + "/output_auto.pdf")
+        book_name = self.book_name_input.text()
+        input_path = os.path.join(INPUT_PATH, f"weekly_item_{book_name}.json")
+        output_path = os.path.join(OUTPUT_PATH, f"output_{book_name}.pdf")
+
+        try:
+            build_weekly_paper(input=input_path, output=output_path)
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def rasterize_pdf_by_gui(self):
+        book_name = self.book_name_input.text()
+        add_watermark_and_rasterize(os.path.join(OUTPUT_PATH, f"output_{book_name}.pdf"),
+                                    os.path.join(OUTPUT_PATH, f"output_{book_name}_R.pdf"))
 
     def eventFilter(self, obj, event):
         if obj in [self.pool_table, self.list_table]:
@@ -436,9 +470,23 @@ class DatabaseManager(QMainWindow):
                         self.deselect_pool_items()
                     elif self.list_table.hasFocus():
                         self.deselect_list_items()
+                elif event.key() == Qt.Key_Delete:
+                    if self.list_table.hasFocus():
+                        self.remove_selected_rows()
+                elif event.key() == Qt.Key_Backspace:
+                    if self.list_table.hasFocus():
+                        self.remove_selected_rows()
+                elif event.key() == Qt.Key_Up:
+                    if self.list_table.hasFocus():
+                        self.move_row_up()
+                elif event.key() == Qt.Key_Down:
+                    if self.list_table.hasFocus():
+                        self.move_row_down()
             elif event.type() == event.KeyRelease and event.key() == Qt.Key_Shift:
                 obj.setSelectionMode(QTableWidget.NoSelection)
         return super().eventFilter(obj, event)
+
+
 class FilterDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)

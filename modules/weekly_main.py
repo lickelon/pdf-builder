@@ -91,7 +91,8 @@ class MainsolBuilder:
         right_page.add_child(origin)
 
         y_end = 46 + Ratio.px_to_mm(component.src_rect.height)
-
+        # 최대 사이즈를 기본 값으로 설정
+        memo_component = self.get_component_on_resources(43)
         if y_end < 180: memo_component = self.get_component_on_resources(39)
         elif y_end < 197.5: memo_component = self.get_component_on_resources(40)
         elif y_end < 211: memo_component = self.get_component_on_resources(41)

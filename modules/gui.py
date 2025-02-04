@@ -8,7 +8,7 @@ import json
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QComboBox, QMessageBox, QLineEdit, QMenu,
                              QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QGridLayout,
                              QHeaderView, QCheckBox, QDialog, QVBoxLayout, QLabel, QSizePolicy)
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import (Qt, QThread, pyqtSignal)
 from main import build_weekly_paper
 from PyQt5.QtGui import QIcon
 from hwp2pdf import *
@@ -32,6 +32,22 @@ class QPushButton(QPushButton):
 # Add the following import at the top
 from PyQt5.QtWidgets import QTextEdit
 
+class PDFCreationThread(QThread):
+    progress_signal = pyqtSignal(str)
+
+    def __init__(self, item_list):
+        super().__init__()
+        self.item_list = item_list
+
+    def run(self):
+        try:
+            create_pdfs(self.item_list, log_callback=self.log_message)
+        except Exception as e:
+            self.progress_signal.emit(f"Error during PDF creation: {e}")
+
+    def log_message(self, message):
+        self.progress_signal.emit(message)
+
 class DatabaseManager(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -44,7 +60,7 @@ class DatabaseManager(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle('Database Manager')
-        self.setGeometry(100, 100, 1200, 600)  # Adjusted width to accommodate log window
+        self.setGeometry(100, 100, 1300, 600)  # Adjusted width to accommodate log window
 
         # Main widget and layout
         main_widget = QWidget()
@@ -137,7 +153,7 @@ class DatabaseManager(QMainWindow):
 
         # Calculate and set fixed total width
         total_width = sum([self.list_table.columnWidth(i) for i in range(5)])  # Exclude hidden Order column
-        self.list_table.setFixedWidth(500)
+        self.list_table.setFixedWidth(550)
         # Hide Order column
         self.list_table.hideColumn(5)
 
@@ -430,10 +446,16 @@ class DatabaseManager(QMainWindow):
             for j, cell_data in enumerate(row_data):
                 self.list_table.setItem(i, j, QTableWidgetItem(cell_data))
 
+    def order_column(self, item_code):
+        parsed = self.parse_code(item_code)
+        order = parsed["topic"] + parsed["section"] + parsed["number"] + parsed["subject"]
+        return order
+
     def sort_list_by_order(self):
         if not self.show_warning_dialog("Are you sure you want to sort the list by order?"):
             return
-        # 현재 테이블의 모든 데이터를 추출
+
+        # Extract all data from the table
         data = []
         for row in range(self.list_table.rowCount()):
             row_data = {
@@ -442,16 +464,16 @@ class DatabaseManager(QMainWindow):
                 'fc_para': self.list_table.item(row, 2).text() if self.list_table.item(row, 2) else "",
                 'mainsub': self.list_table.item(row, 3).text() if self.list_table.item(row, 3) else "",
                 'topic_in_book': self.list_table.item(row, 4).text() if self.list_table.item(row, 4) else "",
-                'order': self.list_table.item(row, 5).text() if self.list_table.item(row, 5) else ""
+                'order': self.order_column(self.list_table.item(row, 0).text())  # Update order column
             }
             data.append(row_data)
 
-        # order 기준으로 정렬
+        # Sort data by order
         data.sort(key=lambda x: x['order'])
 
-        # 정렬된 데이터로 테이블 갱신
+        # Update table with sorted data and reassign order values
         self.list_table.setRowCount(0)
-        for row_data in data:
+        for idx, row_data in enumerate(data):
             row_count = self.list_table.rowCount()
             self.list_table.insertRow(row_count)
             self.list_table.setItem(row_count, 0, QTableWidgetItem(row_data['item_code']))
@@ -459,8 +481,7 @@ class DatabaseManager(QMainWindow):
             self.list_table.setItem(row_count, 2, QTableWidgetItem(row_data['fc_para']))
             self.list_table.setItem(row_count, 3, QTableWidgetItem(row_data['mainsub']))
             self.list_table.setItem(row_count, 4, QTableWidgetItem(row_data['topic_in_book']))
-            self.list_table.setItem(row_count, 5, QTableWidgetItem(row_data['order']))
-
+            self.list_table.setItem(row_count, 5, QTableWidgetItem(str(idx + 1)))  # Update order column
     def show_filter_dialog(self, column):
         if column == 1:  # Topic column
             dialog = FilterDialog(self)
@@ -484,16 +505,16 @@ class DatabaseManager(QMainWindow):
             item_code = self.list_table.item(row, 0).text() if self.list_table.item(row, 0) else None
             item_list.append(item_code)
         self.log_message("Starting PDF creation...")
-        try:
-            create_pdfs(item_list, log_callback=self.log_message)
-        except Exception as e:
-            self.log_message(f"Error during PDF creation: {e}")
 
+        self.pdf_thread = PDFCreationThread(item_list)
+        self.pdf_thread.progress_signal.connect(self.log_message)
+        self.pdf_thread.start()
+    # Sort ComboBox Options
     def load_book_names(self):
         self.book_name_input.clear()
-        for file_name in os.listdir(BOOK_DB_PATH):
-            if file_name.endswith('.json'):
-                self.book_name_input.addItem(file_name)
+        book_names = [file_name for file_name in os.listdir(BOOK_DB_PATH) if file_name.endswith('.json')]
+        book_names.sort()  # Sort book names in ascending order
+        self.book_name_input.addItems(book_names)
 
     def load_selected_book(self):
         book_name = self.book_name_input.currentText()
@@ -654,12 +675,6 @@ class DatabaseManager(QMainWindow):
                 elif event.key() == Qt.Key_Backspace:
                     if self.list_table.hasFocus():
                         self.remove_selected_rows()
-                elif event.key() == Qt.Key_Up:
-                    if self.list_table.hasFocus():
-                        self.move_row_up()
-                elif event.key() == Qt.Key_Down:
-                    if self.list_table.hasFocus():
-                        self.move_row_down()
             elif event.type() == event.KeyRelease and event.key() == Qt.Key_Shift:
                 obj.setSelectionMode(QTableWidget.NoSelection)
         return super().eventFilter(obj, event)

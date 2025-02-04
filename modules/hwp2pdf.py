@@ -35,8 +35,8 @@ def convert_hwp_to_pdf(hwp_path):
 
             # 1) HWP와 PDF 파일 존재 여부 및 생성 시간 체크
             if os.path.exists(hwp_path) and os.path.exists(pdf_path):
-                hwp_time = os.path.getctime(hwp_path)
-                pdf_time = os.path.getctime(pdf_path)
+                hwp_time = os.path.getmtime(hwp_path)
+                pdf_time = os.path.getmtime(pdf_path)
                 # PDF가 HWP보다 나중에 생성되었으며 10kb 이상이면 변환 불필요
                 if pdf_time > hwp_time:
                     pdf_size = os.path.getsize(pdf_path)

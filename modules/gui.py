@@ -464,7 +464,8 @@ class DatabaseManager(QMainWindow):
                 'fc_para': self.list_table.item(row, 2).text() if self.list_table.item(row, 2) else "",
                 'mainsub': self.list_table.item(row, 3).text() if self.list_table.item(row, 3) else "",
                 'topic_in_book': self.list_table.item(row, 4).text() if self.list_table.item(row, 4) else "",
-                'order': self.order_column(self.list_table.item(row, 0).text())  # Update order column
+                'order': self.list_table.item(row,4).text() + parse_code(self.list_table.item(row, 0).text())["section"] +
+                parse_code(self.list_table.item(row, 0).text())["number"] + parse_code(self.list_table.item(row, 0).text())["subject"]
             }
             data.append(row_data)
 
@@ -482,6 +483,7 @@ class DatabaseManager(QMainWindow):
             self.list_table.setItem(row_count, 3, QTableWidgetItem(row_data['mainsub']))
             self.list_table.setItem(row_count, 4, QTableWidgetItem(row_data['topic_in_book']))
             self.list_table.setItem(row_count, 5, QTableWidgetItem(str(idx + 1)))  # Update order column
+
     def show_filter_dialog(self, column):
         if column == 1:  # Topic column
             dialog = FilterDialog(self)
@@ -493,9 +495,15 @@ class DatabaseManager(QMainWindow):
         next_number = 1
         for i in range(self.list_table.rowCount()):
             item = self.list_table.item(i, 1)
-            if item.text() != '-1' or item.text() != '0':
+            current_text = str(item.text())
+
+            # -1이나 0이 아닌 경우에만 번호 매기기
+            if current_text != '-1' and current_text != '0':
                 self.list_table.setItem(i, 1, QTableWidgetItem(str(next_number)))
                 next_number += 1
+            # -1과 0은 그대로 유지
+            else:
+                self.list_table.setItem(i, 1, QTableWidgetItem(current_text))
 
     def create_pdfs_gui(self):
         if not self.show_warning_dialog("Are you sure you want to create PDFs?"):

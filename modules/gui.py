@@ -6,9 +6,10 @@ import sys
 import os
 import json
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QComboBox, QMessageBox, QLineEdit, QMenu,
-                             QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QGridLayout,
+                             QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QGridLayout, QInputDialog,
                              QHeaderView, QCheckBox, QDialog, QVBoxLayout, QLabel, QSizePolicy)
 from PyQt5.QtCore import (Qt, QThread, pyqtSignal)
+from PyQt5.QtGui import QColor
 from main import build_weekly_paper
 from PyQt5.QtGui import QIcon
 from hwp2pdf import *
@@ -52,6 +53,7 @@ class DatabaseManager(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.load_kice_topics()
         self.loadData()
         self.add_context_menu()
         self.sort_pool_by_order()
@@ -75,8 +77,12 @@ class DatabaseManager(QMainWindow):
         pool_top_layout = QVBoxLayout()
         self.deselect_btn = QPushButton('DESELECT POOL')
         self.sort_btn = QPushButton('SORT POOL')
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText('Search Item Code...')
+
         pool_top_layout.addWidget(self.deselect_btn)
         pool_top_layout.addWidget(self.sort_btn)
+        pool_top_layout.addWidget(self.search_input)
         pool_layout.addLayout(pool_top_layout)
 
         # Pool table with fixed dimensions
@@ -198,18 +204,22 @@ class DatabaseManager(QMainWindow):
         self.list_table.installEventFilter(self)
 
         # Connect SIGNAL
+        self.deselect_btn.clicked.connect(self.deselect_pool_items)
+        self.sort_btn.clicked.connect(self.sort_pool_by_order)
+        self.search_input.textChanged.connect(self.filter_pool_table)
+
         self.transfer_btn.clicked.connect(self.transfer_items)
         self.add_btn.clicked.connect(self.add_empty_row)
         self.remove_btn.clicked.connect(self.remove_selected_rows)
-        self.sort_btn.clicked.connect(self.sort_pool_by_order)
-        self.deselect_btn.clicked.connect(self.deselect_pool_items)
-        self.list_sort_btn.clicked.connect(self.sort_list_by_order)
-        self.list_deselect_btn.clicked.connect(self.deselect_list_items)
-        self.list_renumber_btn.clicked.connect(self.renumber_list_items)
-        self.pool_table.horizontalHeader().sectionClicked.connect(self.show_filter_dialog)
-        self.list_table.horizontalHeader().sectionClicked.connect(self.sort_list)
         self.up_btn.clicked.connect(self.move_row_up)
         self.down_btn.clicked.connect(self.move_row_down)
+
+        self.list_deselect_btn.clicked.connect(self.deselect_list_items)
+        self.list_sort_btn.clicked.connect(self.sort_list_by_order)
+        self.list_renumber_btn.clicked.connect(self.renumber_list_items)
+
+        self.pool_table.horizontalHeader().sectionClicked.connect(self.show_filter_dialog)
+        self.list_table.horizontalHeader().sectionClicked.connect(self.sort_list)
 
         self.book_name_input.currentIndexChanged.connect(self.load_selected_book)
         self.create_pdfs_btn.clicked.connect(self.create_pdfs_gui)
@@ -266,41 +276,48 @@ class DatabaseManager(QMainWindow):
         self.list_sort_order = {}
         serial_num = 1
 
+        # Helper function to check if item is valid
+        def is_valid_item(folder_path, subfolder, original_pdf=True):
+            if not os.path.isdir(os.path.join(folder_path, subfolder)):
+                return False
+
+            hwp_path = os.path.join(folder_path, subfolder, f"{subfolder}.hwp")
+            if original_pdf:
+                pdf_path = os.path.join(folder_path, subfolder, f"{subfolder}_original.pdf")
+            else:
+                pdf_path = os.path.join(folder_path, subfolder, f"{subfolder}.pdf")
+
+            return os.path.exists(hwp_path) and os.path.exists(pdf_path)
+
+        # Load from KICE_DB_PATH
         for folder in os.listdir(KICE_DB_PATH):
             folder_path = os.path.join(KICE_DB_PATH, folder)
             if os.path.isdir(folder_path):
                 for subfolder in os.listdir(folder_path):
-                    if len(subfolder) == 13:
-                        hwp_path = os.path.join(folder_path, subfolder, f"{subfolder}.hwp")
-                        pdf_path = os.path.join(folder_path, subfolder, f"{subfolder}_original.pdf")
-                        if os.path.exists(hwp_path):
-                            parsed = self.parse_code(subfolder)
-                            order = parsed["topic"] + parsed["section"] + parsed["number"] + parsed["subject"]
-                            self.pool_data.append({
-                                'serial_num': serial_num,
-                                'item_code': subfolder,
-                                'topic': parsed["topic"],
-                                'order': order
-                            })
-                            serial_num += 1
+                    if len(subfolder) == 13 and is_valid_item(folder_path, subfolder, original_pdf=True):
+                        parsed = self.parse_code(subfolder)
+                        order = parsed["topic"] + parsed["section"] + parsed["number"] + parsed["subject"]
+                        self.pool_data.append({
+                            'item_code': subfolder,
+                            'topic': parsed["topic"],
+                            'order': order
+                        })
+                        serial_num += 1
 
+        # Load from ITEM_DB_PATH
         for folder in os.listdir(ITEM_DB_PATH):
             folder_path = os.path.join(ITEM_DB_PATH, folder)
             if os.path.isdir(folder_path):
                 for subfolder in os.listdir(folder_path):
-                    if len(subfolder) == 13:
-                        hwp_path = os.path.join(folder_path, subfolder, f"{subfolder}.hwp")
-                        pdf_path = os.path.join(folder_path, subfolder, f"{subfolder}.pdf")
-                        if os.path.exists(hwp_path) and os.path.exists(pdf_path):
-                            parsed = self.parse_code(subfolder)
-                            order = parsed["topic"] + parsed["section"] + parsed["number"] + parsed["subject"]
-                            self.pool_data.append({
-                                'serial_num': serial_num,
-                                'item_code': subfolder,
-                                'topic': parsed["topic"],
-                                'order': order
-                            })
-                            serial_num += 1
+                    if len(subfolder) == 13 and is_valid_item(folder_path, subfolder, original_pdf=False):
+                        parsed = self.parse_code(subfolder)
+                        order = parsed["topic"] + parsed["section"] + parsed["number"] + parsed["subject"]
+                        self.pool_data.append({
+                            'item_code': subfolder,
+                            'topic': parsed["topic"],
+                            'order': order
+                        })
+                        serial_num += 1
 
         self.update_pool_table()
 
@@ -309,9 +326,28 @@ class DatabaseManager(QMainWindow):
             data = self.pool_data
         self.pool_table.setRowCount(len(data))
         for i, item in enumerate(data):
-            self.pool_table.setItem(i, 0, QTableWidgetItem(item['item_code']))
+            item_code = item['item_code']
+            item_code_item = QTableWidgetItem(item_code)
+
+            if parse_code(item_code)["section"] == "KC" and item_code not in self.kice_topics:
+                item_code_item.setBackground(QColor('pink'))
+            if parse_code(item_code)["section"] == "KC" and item_code in self.kice_topics:
+                item_code_item.setBackground(QColor('lightgreen'))
+            if parse_code(item_code)["section"] != "KC":
+                item_code_item.setBackground(QColor('lightblue'))
+
+            self.pool_table.setItem(i, 0, item_code_item)
             self.pool_table.setItem(i, 1, QTableWidgetItem(item['topic']))
-            self.pool_table.setItem(i, 2, QTableWidgetItem(item['order']))
+            self.pool_table.setItem(i, 2, QTableWidgetItem(str(item['order'])))
+
+    def load_kice_topics(self):
+        with open(RESOURCES_PATH + '/KICEtopic.json', 'r', encoding='utf-8') as file:
+            data = json.load(file)
+        self.kice_topics = set(data.values())
+
+    def filter_pool_table(self, text):
+        filtered_data = [item for item in self.pool_data if text.lower() in item['item_code'].lower()]
+        self.update_pool_table(filtered_data)
 
     def transfer_items(self):
         selected_rows = sorted(set(item.row() for item in self.pool_table.selectedItems()))
@@ -362,9 +398,9 @@ class DatabaseManager(QMainWindow):
     def deselect_pool_items(self):
         self.pool_table.clearSelection()
 
+    # LIST와 관련된 기능들
     def deselect_list_items(self):
         self.list_table.clearSelection()
-
 
     def move_row_up(self):
         selected_rows = sorted(set(item.row() for item in self.list_table.selectedItems()))
@@ -483,6 +519,42 @@ class DatabaseManager(QMainWindow):
             self.list_table.setItem(row_count, 3, QTableWidgetItem(row_data['mainsub']))
             self.list_table.setItem(row_count, 4, QTableWidgetItem(row_data['topic_in_book']))
             self.list_table.setItem(row_count, 5, QTableWidgetItem(str(idx + 1)))  # Update order column
+
+    # Add a similar method for the list table
+    def update_list_table(self, data=None):
+        if data is None:
+            data = self.list_data
+        self.list_table.setRowCount(len(data))
+        for i, item in enumerate(data):
+            item_code = item['item_code']
+
+            # 색상 결정
+            if parse_code(item_code)["section"] == "KC":
+                if parse_item_caption_path(item_code):
+                    row_color = QColor('lightgreen')
+                else:
+                    row_color = QColor('pink')
+            else:
+                row_color = QColor('lightblue')
+
+            # 각 컬럼의 아이템 생성 및 색상 설정
+            item_code_item = QTableWidgetItem(item_code)
+            item_code_item.setBackground(row_color)
+            self.list_table.setItem(i, 0, item_code_item)
+
+            # 나머지 컬럼들도 같은 색상 적용
+            columns = [
+                str(item.get('item_num', '')),
+                str(item.get('FC_para', '')),
+                str(item.get('mainsub', '')),
+                str(item.get('topic_in_book', '')),
+                str(item.get('order', ''))
+            ]
+
+            for col, value in enumerate(columns, 1):  # 1부터 시작해서 나머지 컬럼 처리
+                table_item = QTableWidgetItem(value)
+                table_item.setBackground(row_color)
+                self.list_table.setItem(i, col, table_item)
 
     def show_filter_dialog(self, column):
         if column == 1:  # Topic column
@@ -632,6 +704,7 @@ class DatabaseManager(QMainWindow):
             self.log_message("PDF rasterization completed successfully.")
         except Exception as e:
             self.log_message(f"Error during PDF rasterization: {e}")
+
     def add_context_menu(self):
         self.pool_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.pool_table.customContextMenuRequested.connect(self.show_context_menu)
@@ -647,9 +720,12 @@ class DatabaseManager(QMainWindow):
             item_code = sender.item(row, 0).text()
             menu = QMenu()
             open_action = menu.addAction("Open Folder")
+            refractor_action = menu.addAction("Refractor Item Code")
             action = menu.exec_(sender.mapToGlobal(pos))
             if action == open_action:
                 self.open_item_folder(item_code)
+            elif action == refractor_action:
+                self.refractor_item_code(item_code)
 
     def open_item_folder(self, item_code):
         # Base folder selection
@@ -665,6 +741,79 @@ class DatabaseManager(QMainWindow):
                     subprocess.run(['explorer', folder_path], check=True)
                 except subprocess.CalledProcessError as e:
                     print(f"Error: {e}")
+
+    def refractor_item_code(self, item_code):
+        try:
+            new_code, ok = QInputDialog.getText(self, 'Refractor Item Code',
+                                                f'Enter new 13-character item code'
+                                                f'\nOriginal = {item_code}'
+                                                f'\nInput Below:')
+
+            if ok and len(new_code) == 13:
+                # 원본 코드의 정보 파싱
+                old_base_path = KICE_DB_PATH if item_code[5:7] == 'KC' else ITEM_DB_PATH
+                old_topic = item_code[2:5]
+                old_topic_path = os.path.join(old_base_path, old_topic)
+                old_item_path = os.path.join(old_topic_path, item_code)
+
+                # 새 코드의 정보 파싱
+                new_base_path = KICE_DB_PATH if new_code[5:7] == 'KC' else ITEM_DB_PATH
+                new_topic = new_code[2:5]
+                new_topic_path = os.path.join(new_base_path, new_topic)
+                new_item_path = os.path.join(new_topic_path, new_code)
+
+                try:
+                    # 기본 검증
+                    if not os.path.exists(old_item_path):
+                        raise FileNotFoundError(f"원본 폴더를 찾을 수 없습니다: {old_item_path}")
+                    if os.path.exists(new_item_path):
+                        raise FileExistsError(f"대상 폴더가 이미 존재합니다: {new_item_path}")
+                    if not os.access(os.path.dirname(old_item_path), os.W_OK):
+                        raise PermissionError(f"폴더 {old_item_path}에 대한 쓰기 권한이 없습니다")
+
+                    # 새로운 topic 폴더가 없으면 생성
+                    if not os.path.exists(new_topic_path):
+                        os.makedirs(new_topic_path)
+
+                    # 폴더 이동
+                    os.rename(old_item_path, new_item_path)
+
+                    # 이동된 폴더 내의 파일 이름 변경
+                    for root, dirs, files in os.walk(new_item_path):
+                        for file_name in files:
+                            if item_code in file_name:
+                                old_file_path = os.path.join(root, file_name)
+                                new_file_name = file_name.replace(item_code, new_code)
+                                new_file_path = os.path.join(root, new_file_name)
+                                os.rename(old_file_path, new_file_path)
+
+                    # 이전 topic 폴더가 비어있으면 삭제
+                    if old_topic != new_topic and not os.listdir(old_topic_path):
+                        os.rmdir(old_topic_path)
+
+                    QMessageBox.information(self, 'Success',
+                                            f'Item code changed from {item_code} to {new_code}')
+
+                    # 테이블 데이터 새로고침
+                    self.loadData()
+                    self.update_pool_table()
+
+                except FileNotFoundError as e:
+                    QMessageBox.critical(self, 'Error', str(e))
+                except FileExistsError as e:
+                    QMessageBox.critical(self, 'Error', str(e))
+                except PermissionError as e:
+                    QMessageBox.critical(self, 'Error', str(e))
+                except Exception as e:
+                    QMessageBox.critical(self, 'Error', f'예상치 못한 오류가 발생했습니다: {str(e)}')
+
+            else:
+                if ok:  # 사용자가 OK를 눌렀지만 코드 길이가 잘못된 경우
+                    QMessageBox.warning(self, 'Error',
+                                        'The new item code must be exactly 13 characters long.')
+
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'An unexpected error occurred: {str(e)}')
 
     def eventFilter(self, obj, event):
         if obj in [self.pool_table, self.list_table]:

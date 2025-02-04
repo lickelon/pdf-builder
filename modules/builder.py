@@ -12,8 +12,6 @@ from utils.ratio import Ratio
 from utils.path import *
 from utils.pdf_utils import PdfUtils
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 class Builder:
     def __init__(self, items):
         self.topics = []
@@ -39,7 +37,7 @@ class Builder:
             box_object = ComponentOverlayObject(page_num, Coord(Ratio.mm_to_px(i*8), 0, 0), box)
             topic_list.add_child(box_object)
         return topic_list
-
+    
     def add_page_num(self, overlayer):
         for num in range(4, overlayer.doc.page_count+4):
             if num % 2:
@@ -48,63 +46,55 @@ class Builder:
                 page_num_object = TextOverlayObject(num-4, Coord(Ratio.mm_to_px(20), Ratio.mm_to_px(358.5), 4), "Pretendard-Bold.ttf", 14, f"{num}", (0, 0, 0), fitz.TEXT_ALIGN_LEFT)
             page_num_object.overlay(overlayer, page_num_object.coord)
 
-    def build_topic(self, topic_set, index, log_callback):
-        if log_callback:
-            log_callback(f"Building topic {topic_set[0]}")
-
-        result = fitz.open()
-
-        if log_callback:
-            log_callback("  (1) Building Flow...")
-        fb = FlowBuilder(topic_set[0], topic_set[1], index)
-        new_doc = fb.build()
-        fc_pages = (result.page_count, (fb.overlayer.doc.page_count + 1) // 2)
-        result.insert_pdf(new_doc)
-        if log_callback:
-            log_callback("Done!")
-
-        if log_callback:
-            log_callback("  (2) Building Main Solution...")
-        mb = MainsolBuilder(topic_set[0], topic_set[1])
-        new_doc = mb.build()
-        flag = 0
-        if new_doc is not None:
-            flag = 1
-            overlayer = Overlayer(result)
-            overlayer.add_page(Component(RESOURCES_PATH + "/weekly_pro_resources.pdf", 4, result.load_page(0).rect))
-            result.insert_pdf(new_doc)
-            if log_callback:
-                log_callback("Done!")
-        else:
-            if log_callback:
-                log_callback("Skipped!")
-
-        if log_callback:
-            log_callback("  (3) Building Problems...")
-        pb = ProblemBuilder(topic_set[0], topic_set[1], flag)
-        new_doc = pb.build()
-        if log_callback:
-            log_callback("Done!")
-        result.insert_pdf(new_doc)
-
-        if log_callback:
-            log_callback(f"Building topic {topic_set[0]} Complete! [{index}/{len(self.items)}]")
-
-        return result, fc_pages
-
     def build(self, output, log_callback=None):
         if log_callback:
             log_callback("Weekly Paper Build Start")
         total = fitz.open()
         fc_pages = []
         index = 1
+        for topic_set in self.items.items():
+            if log_callback:
+                log_callback(f"Building topic {topic_set[0]}")
 
-        with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(self.build_topic, topic_set, index, log_callback): topic_set for index, topic_set in enumerate(self.items.items(), start=1)}
-            for future in as_completed(futures):
-                result, pages = future.result()
-                total.insert_pdf(result)
-                fc_pages.append(pages)
+            if log_callback:
+                log_callback("  (1) Building Flow...")
+            result = fitz.open()
+            fb = FlowBuilder(topic_set[0], topic_set[1], index)
+            new_doc = fb.build()
+            fc_pages.append((total.page_count, (fb.overlayer.doc.page_count + 1) // 2))
+            result.insert_pdf(new_doc)
+            if log_callback:
+                log_callback("Done!")
+
+            if log_callback:
+                log_callback("  (2) Building Main Solution...")
+            mb = MainsolBuilder(topic_set[0], topic_set[1])
+            new_doc = mb.build()
+            flag = 0
+            if new_doc is not None:
+                flag = 1
+                overlayer = Overlayer(result)
+                overlayer.add_page(Component(RESOURCES_PATH + "/weekly_pro_resources.pdf", 4, result.load_page(0).rect))
+
+                result.insert_pdf(new_doc)
+                if log_callback:
+                    log_callback("Done!")
+            else:
+                if log_callback:
+                    log_callback("Skipped!")
+
+            if log_callback:
+                log_callback("  (3) Building Problems...")
+            pb = ProblemBuilder(topic_set[0], topic_set[1], flag)
+            new_doc = pb.build()
+            if log_callback:
+                log_callback("Done!")
+            result.insert_pdf(new_doc)
+
+            if log_callback:
+                log_callback(f"Building topic {topic_set[0]} Complete! [{index}/{len(self.items)}]")
+            total.insert_pdf(result)
+            index += 1
 
         if log_callback:
             log_callback("Building Solutions...")

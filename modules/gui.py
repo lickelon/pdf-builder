@@ -870,16 +870,22 @@ class FilterDialog(QDialog):
 
         # 왼쪽 카테고리 버튼들을 위한 레이아웃
         category_layout = QVBoxLayout()
+        stretch_factors = [1, 2, 1, 2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 1, 1, 1]
+        title_factors = ['고체1', '고체2', '고체3', '고체4', '고체5',
+                         '유체1', '유체2', '유체3', '유체4', '유체5',
+                         '천체1', '천체2', '천체3', '천체4', '천체5', '천체6']
+
         # 오른쪽 체크박스들을 위한 그리드 레이아웃
         checkbox_grid = QGridLayout()
 
         grouped_topics = self.group_topics_by_category(topics)
         current_row = 0
 
-        for category, group in grouped_topics.items():
+        for i, (category, group) in enumerate(grouped_topics.items()):
             # 카테고리 버튼은 왼쪽 레이아웃에 추가
-            category_btn = QPushButton(category)
+            category_btn = QPushButton(title_factors[i] + ': ' + category)
             category_layout.addWidget(category_btn)
+            category_layout.setStretch(i, stretch_factors[i])
 
             self.category_checkboxes[category] = []
 
@@ -887,7 +893,7 @@ class FilterDialog(QDialog):
             count = 0
             for key, display_text in group:
                 cb = QCheckBox(display_text)
-                cb.setChecked(True)
+                cb.setChecked(False)
                 self.checkboxes.append(cb)
                 self.category_checkboxes[category].append(cb)
                 checkbox_grid.addWidget(cb, current_row, count)

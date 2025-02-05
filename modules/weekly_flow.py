@@ -78,7 +78,7 @@ class FlowBuilder:
         self.item_lists = []
         for para in item_list:
             if len(para) != 0:
-                self.item_lists.append(para)
+                self.item_lists.append(sorted(para))
     
     def build(self):
         new_doc = fitz.open()

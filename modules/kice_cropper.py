@@ -140,7 +140,7 @@ class KiceCropper:
         parts = key.split(' ')
         if key not in topic_code:
             return None
-        code = subject_code[parts[3]] + topic_code[key][0] + 'KC' + parts[0][2:4] + month_code[parts[1]] + f'{int(parts[2][:-1]):02d}'
+        code = topic_code[key]
         return code
 
     def save_original(self) -> None:
@@ -175,7 +175,8 @@ class KiceCropper:
                 tw.write_text(new_page, color=(0,0,0))
                 new_doc.save(f"output/caption/{self.base_name[:-7]} {i+1}번 {self.base_name[-6:-4]}_caption.pdf")
                 #PdfUtils.extract_to_pdf(file, infos[i].page_num, infos[i].rect, f"output/caption/{os.path.basename(pdf_name)[:-4]} {i+1}번 지1_caption.pdf")
-    
+
+
     def bake_origin(self, source):
         text = TextOverlayObject(0, Coord(0,0,0), "Pretendard-Regular.ttf", 12, source, (1,1,1), fitz.TEXT_ALIGN_CENTER)
         text.get_width()
